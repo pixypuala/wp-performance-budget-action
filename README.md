@@ -51,7 +51,7 @@ Requires Node 20+ and pnpm (`corepack enable`).
 
 ```bash
 pnpm install
-pnpm test        # 8 unit tests for the budget evaluator
+pnpm test        # 12 unit tests for the budget evaluator and PR-comment formatter
 pnpm build       # compile the CLI to dist/
 node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when over budget
 ```
@@ -71,10 +71,17 @@ node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when ove
   CLS, INP, transfer KB, request count) against a declared budget, reporting each over-budget
   metric and how far over. Only metrics present in both are checked, so partial budgets work.
 - `summarize` — human-readable CI/PR output.
+- `formatComment` (`src/format.ts`) — a pure function that renders an evaluation as a
+  deterministic Markdown table for a PR comment. Pass/fail is signalled with the text
+  `PASS`/`FAIL` (never colour alone), so it survives plain text, screen readers, and
+  monochrome rendering. No network — building the string is separate from posting it.
 - CLI (`src/cli.ts`) — reads two JSON files and exits non-zero when over budget.
 - `action.yml` — composite GitHub Action wrapping the CLI.
-- 8 vitest tests; strict TypeScript; CI on Node 20/22.
+- Package entry (`src/index.ts`) re-exports `evaluate`, `summarize`, `formatComment`, and types.
+- 12 vitest tests; strict TypeScript; CI on Node 20/22.
 
 ## Documented boundary (not yet built)
 
-The Lighthouse/WebPageTest collectors that produce the metrics JSON, and PR-comment posting.
+The Lighthouse/WebPageTest collectors that produce the metrics JSON, and posting the
+comment to GitHub via the API (the Markdown is rendered by `formatComment`; wiring it to
+the PR is still deferred).

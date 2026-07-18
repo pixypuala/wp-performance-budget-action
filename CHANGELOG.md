@@ -10,4 +10,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Repository scaffolding: governance files, docs, and CI skeleton.
 - Pure budget evaluator (evaluate/summarize) for LCP, CLS, INP, transfer size, request count.
 - CLI that exits non-zero when over budget, plus a composite action.yml.
-- 8 vitest tests; strict TypeScript; CI on Node 20 and 22.
+- `formatComment`: a pure, network-free PR-comment formatter that renders an evaluation as a
+  deterministic Markdown table with text-based `PASS`/`FAIL` status (not colour-only).
+- Package entry (`src/index.ts`) exporting the pure building blocks.
+- 12 vitest tests; strict TypeScript; CI on Node 20 and 22.

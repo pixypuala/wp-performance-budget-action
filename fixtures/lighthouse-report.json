@@ -1,0 +1,21 @@
+{
+  "requestedUrl": "https://example.com/",
+  "audits": {
+    "largest-contentful-paint": { "numericValue": 3187.4, "displayValue": "3.2 s" },
+    "cumulative-layout-shift": { "numericValue": 0.0213, "displayValue": "0.021" },
+    "interaction-to-next-paint": { "numericValue": 176.8, "displayValue": "177 ms" },
+    "total-byte-weight": {
+      "numericValue": 972800,
+      "displayValue": "Total size was 950 KiB"
+    },
+    "network-requests": {
+      "details": {
+        "items": [
+          { "url": "https://example.com/" },
+          { "url": "https://example.com/style.css" },
+          { "url": "https://example.com/app.js" }
+        ]
+      }
+    }
+  }
+}

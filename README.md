@@ -51,7 +51,7 @@ Requires Node 20+ and pnpm (`corepack enable`).
 
 ```bash
 pnpm install
-pnpm test        # 12 unit tests for the budget evaluator and PR-comment formatter
+pnpm test        # 24 unit tests: evaluator, PR-comment formatter, Lighthouse parser, comment poster
 pnpm build       # compile the CLI to dist/
 node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when over budget
 ```
@@ -75,13 +75,24 @@ node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when ove
   deterministic Markdown table for a PR comment. Pass/fail is signalled with the text
   `PASS`/`FAIL` (never colour alone), so it survives plain text, screen readers, and
   monochrome rendering. No network — building the string is separate from posting it.
+- `parseLighthouseReport` (`src/lighthouse.ts`) — a pure function that turns a Lighthouse
+  JSON result object into the exact metrics shape `evaluate` consumes (LCP, CLS, INP,
+  transfer KB, request count). Missing or non-numeric audits are omitted, so a partial
+  report yields a partial `Metrics` and the "only check overlapping metrics" rule holds.
+- `postOrUpdateComment` (`src/github-comment.ts`) — posts the budget comment to a PR, or
+  edits the existing one in place (found via a hidden marker) so builds do not stack
+  duplicates. The HTTP client is injected, so the create-vs-update decision and request
+  shape are fully unit-tested against a mock — no network, no live token.
 - CLI (`src/cli.ts`) — reads two JSON files and exits non-zero when over budget.
 - `action.yml` — composite GitHub Action wrapping the CLI.
-- Package entry (`src/index.ts`) re-exports `evaluate`, `summarize`, `formatComment`, and types.
-- 12 vitest tests; strict TypeScript; CI on Node 20/22.
+- Package entry (`src/index.ts`) re-exports `evaluate`, `summarize`, `formatComment`,
+  `parseLighthouseReport`, `postOrUpdateComment`, and types.
+- 24 vitest tests; strict TypeScript; CI on Node 20/22.
 
 ## Documented boundary (not yet built)
 
-The Lighthouse/WebPageTest collectors that produce the metrics JSON, and posting the
-comment to GitHub via the API (the Markdown is rendered by `formatComment`; wiring it to
-the PR is still deferred).
+Two environment-dependent seams remain. Running Lighthouse live requires a real browser,
+so producing the report JSON that `parseLighthouseReport` consumes is deferred (the parse
+step itself is built and tested). Making the authenticated GitHub API call requires a real
+token and network; `postOrUpdateComment` performs the request logic against an injected
+client, but wiring a live client and credentials into the action runtime is deferred.

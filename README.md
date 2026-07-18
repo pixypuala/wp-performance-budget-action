@@ -44,3 +44,37 @@ A local CLI and GitHub Action that evaluates repeatable WordPress journey budget
 ## Non-negotiable rule
 
 A feature is not complete because code exists. It is complete only when its contract, permissions, failure behavior, automated tests, manual evidence where applicable, documentation, migration/deprecation impact and release artifact are all reviewed.
+
+## Getting started
+
+Requires Node 20+ and pnpm (`corepack enable`).
+
+```bash
+pnpm install
+pnpm test        # 8 unit tests for the budget evaluator
+pnpm build       # compile the CLI to dist/
+node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when over budget
+```
+
+### Use as a GitHub Action
+
+```yaml
+- uses: pixypuala/wp-performance-budget-action@v0
+  with:
+    metrics: ./reports/metrics.json
+    budget: ./perf-budget.json
+```
+
+## What is built today
+
+- `evaluate` (`src/evaluate.ts`) — the pure pass/fail policy: compares measured metrics (LCP,
+  CLS, INP, transfer KB, request count) against a declared budget, reporting each over-budget
+  metric and how far over. Only metrics present in both are checked, so partial budgets work.
+- `summarize` — human-readable CI/PR output.
+- CLI (`src/cli.ts`) — reads two JSON files and exits non-zero when over budget.
+- `action.yml` — composite GitHub Action wrapping the CLI.
+- 8 vitest tests; strict TypeScript; CI on Node 20/22.
+
+## Documented boundary (not yet built)
+
+The Lighthouse/WebPageTest collectors that produce the metrics JSON, and PR-comment posting.

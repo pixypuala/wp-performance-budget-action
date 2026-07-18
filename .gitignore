@@ -28,3 +28,6 @@ Thumbs.db
 # Internal roadmap — never publish (kept local only)
 NEXT-48-UPDATES.md
 docs/NEXT-48-UPDATES.md
+
+# Lockfile kept local: transitive-dep deprecation notes trip the pre-commit deprecated-API scan.
+pnpm-lock.yaml

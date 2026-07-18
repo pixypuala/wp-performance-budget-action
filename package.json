@@ -1,0 +1,20 @@
+{
+  "name": "@pixypuala/wp-performance-budget-action",
+  "version": "0.1.0",
+  "description": "A GitHub Action that fails a build when WordPress performance metrics exceed a declared budget (LCP, CLS, INP, transfer size, request count).",
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@9.0.0",
+  "bin": { "wp-perf-budget": "./dist/cli.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

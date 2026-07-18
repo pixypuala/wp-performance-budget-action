@@ -1,0 +1,35 @@
+name: 'WP Performance Budget'
+description: 'Fail the build when WordPress performance metrics exceed a declared budget.'
+author: 'Pixypuala'
+branding:
+  icon: 'trending-down'
+  color: 'green'
+
+inputs:
+  metrics:
+    description: 'Path to a JSON file of measured metrics (lcpMs, cls, inpMs, totalKb, requests).'
+    required: true
+  budget:
+    description: 'Path to a JSON file declaring the budget for those metrics.'
+    required: true
+
+runs:
+  # Composite action: build once, then run the compiled CLI. The exit code of
+  # the CLI (0 within budget, 1 over) becomes the step result.
+  using: 'composite'
+  steps:
+    - name: Enable Corepack
+      shell: bash
+      run: corepack enable
+    - name: Install and build
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        pnpm install --no-frozen-lockfile
+        pnpm build
+    - name: Evaluate budget
+      shell: bash
+      env:
+        METRICS_PATH: ${{ inputs.metrics }}
+        BUDGET_PATH: ${{ inputs.budget }}
+      run: node "${{ github.action_path }}/dist/cli.js" "$METRICS_PATH" "$BUDGET_PATH"

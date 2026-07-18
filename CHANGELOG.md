@@ -8,3 +8,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - Repository scaffolding: governance files, docs, and CI skeleton.
+- Pure budget evaluator (evaluate/summarize) for LCP, CLS, INP, transfer size, request count.
+- CLI that exits non-zero when over budget, plus a composite action.yml.
+- 8 vitest tests; strict TypeScript; CI on Node 20 and 22.

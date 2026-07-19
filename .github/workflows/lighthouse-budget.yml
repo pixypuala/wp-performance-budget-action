@@ -1,0 +1,53 @@
+name: Lighthouse Budget
+
+# Runs a real Lighthouse audit against a target URL on the PR, then enforces the
+# declared performance budget and comments the result on the pull request.
+on:
+  pull_request:
+    branches: [main]
+
+# Least privilege: read the code, write the single PR comment.
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: lighthouse-budget-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse-budget:
+    name: Lighthouse budget
+    runs-on: ubuntu-latest
+    # Target is configured out-of-band (repository variable), never taken from
+    # untrusted PR event data. ubuntu-latest ships Chrome, which Lighthouse needs.
+    env:
+      TARGET_URL: ${{ vars.LIGHTHOUSE_URL || 'https://example.com/' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack (provides pnpm)
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Lighthouse
+        # TARGET_URL is passed via env, never interpolated into the shell.
+        run: |
+          corepack pnpm dlx lighthouse "$TARGET_URL" \
+            --quiet \
+            --only-categories=performance \
+            --chrome-flags="--headless=new --no-sandbox" \
+            --output=json \
+            --output-path=./lighthouse-report.json
+
+      - name: Enforce performance budget
+        uses: ./
+        with:
+          lighthouse-report: ./lighthouse-report.json
+          budget: ./fixtures/budget.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repo: ${{ github.repository }}
+          pr-number: ${{ github.event.pull_request.number }}

@@ -51,18 +51,42 @@ Requires Node 20+ and pnpm (`corepack enable`).
 
 ```bash
 pnpm install
-pnpm test        # 24 unit tests: evaluator, PR-comment formatter, Lighthouse parser, comment poster
+pnpm test        # 27 unit tests: evaluator, formatter, Lighthouse parser, comment poster, action orchestration
 pnpm build       # compile the CLI to dist/
 node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when over budget
 ```
 
 ### Use as a GitHub Action
 
+Run Lighthouse to produce a JSON report, then hand it to this action. It
+evaluates the budget, posts (or updates) the PR comment, and fails the job when
+a metric is over budget:
+
 ```yaml
+- name: Run Lighthouse
+  run: |
+    corepack pnpm dlx lighthouse "$TARGET_URL" \
+      --only-categories=performance \
+      --chrome-flags="--headless=new --no-sandbox" \
+      --output=json --output-path=./lighthouse-report.json
+  env:
+    TARGET_URL: ${{ vars.LIGHTHOUSE_URL }}
+
 - uses: pixypuala/wp-performance-budget-action@v0
   with:
-    metrics: ./reports/metrics.json
+    lighthouse-report: ./lighthouse-report.json
     budget: ./perf-budget.json
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+    pr-number: ${{ github.event.pull_request.number }}
+```
+
+The workflow needs `pull-requests: write` permission to comment. A complete,
+runnable example lives in `.github/workflows/lighthouse-budget.yml`. For a purely
+local check without a report or GitHub, the CLI still takes a pre-extracted
+metrics file and a budget file:
+
+```bash
+node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when over budget
 ```
 
 ## What is built today
@@ -83,16 +107,32 @@ node dist/cli.js fixtures/metrics.json fixtures/budget.json   # exits 1 when ove
   edits the existing one in place (found via a hidden marker) so builds do not stack
   duplicates. The HTTP client is injected, so the create-vs-update decision and request
   shape are fully unit-tested against a mock — no network, no live token.
-- CLI (`src/cli.ts`) — reads two JSON files and exits non-zero when over budget.
-- `action.yml` — composite GitHub Action wrapping the CLI.
+- `run` (`src/main.ts`) — the end-to-end action entrypoint. It reads inputs from the
+  environment, then wires the pure blocks together: `parseLighthouseReport` → `evaluate` →
+  `formatComment` → `postOrUpdateComment`, sets the `passed`/`violations`/`comment-url`
+  outputs, and drives the process exit code (non-zero on a breach, which fails the job). The
+  HTTP client, file reader, logger, and output sink are injected, so the whole pipeline is
+  unit-tested offline against a mock client and a fixture report — the live GitHub call only
+  binds real `fetch` at the bottom of the file.
+- CLI (`src/cli.ts`) — reads two JSON files and exits non-zero when over budget, for a purely
+  local check without a Lighthouse report or GitHub.
+- `action.yml` — composite GitHub Action that builds the entrypoint and runs it, exposing
+  `lighthouse-report`, `budget`, `github-token`, `pr-number`, `repo`, `comment`, and
+  `api-base-url` inputs and `passed`/`violations`/`comment-url` outputs.
+- `.github/workflows/lighthouse-budget.yml` — a runnable workflow that performs a live
+  Lighthouse audit on the runner (Chrome is preinstalled on `ubuntu-latest`) and invokes the
+  action to comment on the PR.
 - Package entry (`src/index.ts`) re-exports `evaluate`, `summarize`, `formatComment`,
   `parseLighthouseReport`, `postOrUpdateComment`, and types.
-- 24 vitest tests; strict TypeScript; CI on Node 20/22.
+- 27 vitest tests; strict TypeScript; CI on Node 20/22.
 
-## Documented boundary (not yet built)
+## Environment-dependent seams (covered by the workflow)
 
-Two environment-dependent seams remain. Running Lighthouse live requires a real browser,
-so producing the report JSON that `parseLighthouseReport` consumes is deferred (the parse
-step itself is built and tested). Making the authenticated GitHub API call requires a real
-token and network; `postOrUpdateComment` performs the request logic against an injected
-client, but wiring a live client and credentials into the action runtime is deferred.
+The two seams that need a real environment are now wired, and the workflow provides that
+environment. The **live Lighthouse audit** needs a real browser: the
+`.github/workflows/lighthouse-budget.yml` job runs it on `ubuntu-latest`, where Chrome is
+preinstalled, and produces the report JSON that `parseLighthouseReport` consumes. The
+**authenticated GitHub API call** needs a real token and network: the composite action binds
+a live `fetch`-based client and the job's `GITHUB_TOKEN` into `postOrUpdateComment`. Both are
+exercised offline in unit tests via injection; proving them against a live PR requires an
+actual CI run with `pull-requests: write` permission and a reachable target URL.

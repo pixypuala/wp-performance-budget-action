@@ -1,35 +1,75 @@
 name: 'WP Performance Budget'
-description: 'Fail the build when WordPress performance metrics exceed a declared budget.'
+description: 'Fail the build when WordPress performance metrics exceed a declared budget, and comment the result on the PR.'
 author: 'Pixypuala'
 branding:
   icon: 'trending-down'
   color: 'green'
 
 inputs:
-  metrics:
-    description: 'Path to a JSON file of measured metrics (lcpMs, cls, inpMs, totalKb, requests).'
+  lighthouse-report:
+    description: 'Path to a Lighthouse JSON result file (produced by a live Lighthouse run on the runner).'
     required: true
   budget:
-    description: 'Path to a JSON file declaring the budget for those metrics.'
+    description: 'Path to a JSON file declaring the budget (lcpMs, cls, inpMs, totalKb, requests). Partial budgets are allowed.'
     required: true
+  github-token:
+    description: 'Token authorized to write PR comments (typically secrets.GITHUB_TOKEN). Required unless comment is "false".'
+    required: false
+    default: ${{ github.token }}
+  repo:
+    description: 'Repository in owner/name form.'
+    required: false
+    default: ${{ github.repository }}
+  pr-number:
+    description: 'Pull-request number to comment on. Required unless comment is "false".'
+    required: false
+    default: ${{ github.event.pull_request.number }}
+  comment:
+    description: 'Whether to post/update the PR comment. Set "false" to only evaluate and set the exit code.'
+    required: false
+    default: 'true'
+  api-base-url:
+    description: 'GitHub API root, overridable for GitHub Enterprise.'
+    required: false
+
+outputs:
+  passed:
+    description: 'true when every checked metric was within budget, false otherwise.'
+    value: ${{ steps.evaluate.outputs.passed }}
+  violations:
+    description: 'Number of metrics found over budget.'
+    value: ${{ steps.evaluate.outputs.violations }}
+  comment-url:
+    description: 'HTML URL of the created or updated PR comment (empty when commenting is disabled).'
+    value: ${{ steps.evaluate.outputs.comment-url }}
 
 runs:
-  # Composite action: build once, then run the compiled CLI. The exit code of
-  # the CLI (0 within budget, 1 over) becomes the step result.
+  # Composite action: build the bundled entrypoint once, then run it. The
+  # entrypoint parses the report, evaluates the budget, posts/updates the PR
+  # comment via a live fetch client, and exits non-zero on a breach — which
+  # fails the step, and so the job.
   using: 'composite'
   steps:
     - name: Enable Corepack
       shell: bash
       run: corepack enable
-    - name: Install and build
+    - name: Install and build the action
       shell: bash
       working-directory: ${{ github.action_path }}
       run: |
-        pnpm install --no-frozen-lockfile
-        pnpm build
-    - name: Evaluate budget
+        corepack pnpm install --no-frozen-lockfile
+        corepack pnpm run build
+    - name: Evaluate budget and comment
+      id: evaluate
       shell: bash
       env:
-        METRICS_PATH: ${{ inputs.metrics }}
-        BUDGET_PATH: ${{ inputs.budget }}
-      run: node "${{ github.action_path }}/dist/cli.js" "$METRICS_PATH" "$BUDGET_PATH"
+        INPUT_LIGHTHOUSE_REPORT: ${{ inputs.lighthouse-report }}
+        INPUT_BUDGET: ${{ inputs.budget }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_REPO: ${{ inputs.repo }}
+        INPUT_PR_NUMBER: ${{ inputs.pr-number }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_API_BASE_URL: ${{ inputs.api-base-url }}
+      # Run from the caller's workspace so the report/budget paths resolve there,
+      # but load the compiled entrypoint from the action's own checkout.
+      run: node "$GITHUB_ACTION_PATH/dist/main.js"

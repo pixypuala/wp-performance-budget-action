@@ -3,8 +3,9 @@
  *
  * Given a Lighthouse JSON result object, extract exactly the {@link Metrics}
  * shape that {@link evaluate} consumes. This is a pure function of its input —
- * running Lighthouse (which needs a real browser) is a separate, still-deferred
- * concern. Audits that are absent or non-numeric are omitted rather than
+ * running Lighthouse (which needs a real browser) is a separate concern, handled
+ * by the workflow; see docs/RUNTIME-VERIFICATION.md for a real run through this
+ * parser. Audits that are absent or non-numeric are omitted rather than
  * defaulted, so a partial report yields a partial `Metrics` and `evaluate`'s
  * "only check overlapping metrics" rule stays correct.
  */

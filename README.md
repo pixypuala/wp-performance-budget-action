@@ -114,5 +114,10 @@ environment. The **live Lighthouse audit** needs a real browser: the
 preinstalled, and produces the report JSON that `parseLighthouseReport` consumes. The
 **authenticated GitHub API call** needs a real token and network: the composite action binds
 a live `fetch`-based client and the job's `GITHUB_TOKEN` into `postOrUpdateComment`. Both are
-exercised offline in unit tests via injection; proving them against a live PR requires an
-actual CI run with `pull-requests: write` permission and a reachable target URL.
+exercised offline in unit tests via injection.
+
+The Lighthouse seam is no longer only theoretical: `parseLighthouseReport` and the CLI gate
+have been run against a report produced by Lighthouse 12.8.2 in headless Chrome against a
+live WordPress site, with the real numbers and both exit codes recorded in
+[`docs/RUNTIME-VERIFICATION.md`](docs/RUNTIME-VERIFICATION.md). Proving the PR comment
+against a live pull request still requires an actual CI run with `pull-requests: write`.
